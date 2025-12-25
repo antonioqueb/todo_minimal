@@ -1,54 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Tree View -->
-    <record id="view_todo_task_tree" model="ir.ui.view">
-        <field name="name">todo.task.tree</field>
-        <field name="model">todo.task</field>
-        <field name="arch" type="xml">
-            <list editable="bottom">
-                <field name="name"/>
-                <field name="priority"/>
-                <field name="is_done"/>
-            </list>
-        </field>
-    </record>
-
-    <!-- SEARCH VIEW (Lo que quieres probar) -->
+    <!-- Search View CORREGIDA para Odoo 17+ -->
     <record id="view_todo_task_search" model="ir.ui.view">
         <field name="name">todo.task.search</field>
         <field name="model">todo.task</field>
         <field name="arch" type="xml">
             <search>
-                <!-- Filtro de texto simple -->
                 <field name="name" string="Buscar Tarea"/>
                 
-                <!-- Filtros rápidos (Botones) -->
+                <separator/>
                 <filter string="Pendientes" name="pending" domain="[('is_done', '=', False)]"/>
+                <filter string="Completadas" name="done" domain="[('is_done', '=', True)]"/>
                 <filter string="Alta Prioridad" name="high_priority" domain="[('priority', '=', '2')]"/>
                 
                 <separator/>
-                
-                <!-- Agrupadores -->
-                <group expand="0" string="Agrupar por">
-                    <filter string="Estado" name="group_by_done" context="{'group_by': 'is_done'}"/>
-                    <filter string="Prioridad" name="group_by_priority" context="{'group_by': 'priority'}"/>
-                </group>
+                <filter string="Por Estado" name="group_by_done" context="{'group_by': 'is_done'}"/>
+                <filter string="Por Prioridad" name="group_by_priority" context="{'group_by': 'priority'}"/>
             </search>
         </field>
     </record>
 
-    <!-- Action -->
-    <record id="action_todo_task" model="ir.actions.act_window">
-        <field name="name">Mis Tareas</field>
-        <field name="res_model">todo.task</field>
-        <field name="view_mode">list,form</field>
-        <field name="search_view_id" ref="view_todo_task_search"/>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">Crea tu primera tarea para probar el filtro</p>
+    <!-- List View -->
+    <record id="view_todo_task_list" model="ir.ui.view">
+        <field name="name">todo.task.list</field>
+        <field name="model">todo.task</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-success="is_done" decoration-muted="is_done" decoration-danger="priority == '2' and not is_done">
+                <field name="name"/>
+                <field name="priority" widget="priority"/>
+                <field name="date_deadline"/>
+                <field name="is_done" widget="boolean_toggle"/>
+            </list>
         </field>
     </record>
 
-    <!-- Menu -->
-    <menuitem id="menu_todo_root" name="Todo App" sequence="10"/>
-    <menuitem id="menu_todo_task" name="Tareas" parent="menu_todo_root" action="action_todo_task" sequence="10"/>
+    <!-- Form View -->
+    <record id="view_todo_task_form" model="ir.ui.view">
+        <field name="name">todo.task.form</field>
+        <field name="model">todo.task</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-check" invisible="not is_done">
+                            <field name="is_done" widget="boolean_button" options='{"terminology": "done"}'/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" placeholder="¿Qué necesitas hacer?"/>
+                            <field name="priority" widget="priority"/>
+                        </group>
+                        <group>
+                            <field name="date_deadline"/>
+                            <field name="is_done"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Agrega notas adicionales..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_todo_task_kanban" model="ir.ui.view">
+        <field name="name">todo.task.kanban</field>
+        <field name="model">todo.task</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="priority" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="priority"/>
+                <field name="is_done"/>
+                <field name="color"/>
+                <templates>
+                    <t t-name="card">
+                        <div t-attf-class="#{record.is_done.raw_value ? 'text-muted' : ''}">
+                            <field name="priority" widget="priority"/>
+                            <field name="name" class="fw-bold"/>
+                            <field name="is_done" widget="boolean_toggle"/>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Dashboard Action -->
+    <record id="action_todo_dashboard" model="ir.actions.client">
+        <field name="name">Dashboard</field>
+        <field name="tag">todo_dashboard_action</field>
+    </record>
+
+    <!-- Window Action -->
+    <record id="action_todo_task" model="ir.actions.act_window">
+        <field name="name">Mis Tareas</field>
+        <field name="res_model">todo.task</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="view_todo_task_search"/>
+        <field name="context">{'search_default_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera tarea</p>
+            <p>Organiza tu día con tareas simples</p>
+        </field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_todo_root" 
+              name="Todo App" 
+              web_icon="todo_app,static/description/icon.png"
+              sequence="10"/>
+    
+    <menuitem id="menu_todo_dashboard" 
+              name="Dashboard" 
+              parent="menu_todo_root" 
+              action="action_todo_dashboard" 
+              sequence="5"/>
+    
+    <menuitem id="menu_todo_task" 
+              name="Tareas" 
+              parent="menu_todo_root" 
+              action="action_todo_task" 
+              sequence="10"/>
 </odoo>
